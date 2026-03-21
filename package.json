@@ -1,0 +1,26 @@
+{
+  "name": "zahl-des-tages",
+  "version": "1.0.0",
+  "description": "Lass die Zahl des Tages vom Zufallsgenerator erzeugen",
+  "keywords": [
+    "Zahl",
+    "des",
+    "Tages",
+    "Unterricht",
+    "Zufallsgenerator"
+  ],
+  "license": "GPL-3.0-or-later",
+  "author": "Henning P. Beyer <bubens@unpunk.de>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bubens/Zahl_des_Tages2.git"
+  },
+  "main": "www/index.html",
+  "scripts": {
+    "make" : "sh make.sh"
+  },
+  "devDependencies": {
+    "elm": "^0.19.1-6",
+    "terser": "^5.46.0"
+  }
+}
