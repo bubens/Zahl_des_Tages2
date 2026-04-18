@@ -14,6 +14,7 @@ import Element.Region as Region
 import Html exposing (Html)
 import Icons
 import Json.Decode as Decode exposing (Decoder)
+import Json.Decode.Pipeline as Decode
 import Json.Encode as Encode
 import Random
 import SimpleTimer exposing (SimpleTimer)
@@ -41,6 +42,8 @@ type alias Flags =
     , separator : Char
     , currentColorScheme : Colors.ColorScheme
     , settingsOpen : Bool
+    , windowWidth : Float
+    , windowHeight : Float
     }
 
 
@@ -64,6 +67,12 @@ type alias Settings =
     }
 
 
+type alias WindowSizes =
+    { width : Float
+    , height : Float
+    }
+
+
 type SettingsInputData
     = Minimum String
     | Maximum String
@@ -79,6 +88,8 @@ type alias Model =
     , mouseOverSettingsIcon : Bool
     , settingsOpen : Bool
     , settings : Settings
+    , windowWidth : Float
+    , windowHeight : Float
     }
 
 
@@ -96,6 +107,7 @@ type Msg
     | AudioEventDone String
     | SetColorScheme Colors.ColorScheme
     | SetSeparator Char
+    | WindowResize WindowSizes
 
 
 
@@ -159,13 +171,22 @@ getColorScheme name =
 
 flagsDecoder : Decoder Flags
 flagsDecoder =
-    Decode.map6 Flags
-        (Decode.field "minimum" (Decode.map checkInput Decode.string))
-        (Decode.field "maximum" (Decode.map checkInput Decode.string))
-        (Decode.field "workingTime" (Decode.map checkInput Decode.string))
-        (Decode.field "separator" (Decode.map (charifyWithDefault '.') Decode.string))
-        (Decode.field "currentColorScheme" (Decode.map getColorScheme Decode.string))
-        (Decode.field "settingsOpen" Decode.bool)
+    Decode.succeed Flags
+        |> Decode.required "minimum" (Decode.map checkInput Decode.string)
+        |> Decode.required "maximum" (Decode.map checkInput Decode.string)
+        |> Decode.required "workingTime" (Decode.map checkInput Decode.string)
+        |> Decode.required "separator" (Decode.map (charifyWithDefault '.') Decode.string)
+        |> Decode.required "currentColorScheme" (Decode.map getColorScheme Decode.string)
+        |> Decode.required "settingsOpen" Decode.bool
+        |> Decode.required "windowWidth" Decode.float
+        |> Decode.required "windowHeight" Decode.float
+
+
+windowSizeDecoder : Decoder WindowSizes
+windowSizeDecoder =
+    Decode.map2 WindowSizes
+        (Decode.field "width" Decode.float)
+        (Decode.field "height" Decode.float)
 
 
 
@@ -196,15 +217,23 @@ settingsEncoder model =
 
 
 -- PORTS
+-- OUTGOING
 
 
 port triggerAudioEvent : String -> Cmd msg
 
 
+port storeSettings : Encode.Value -> Cmd msg
+
+
+
+-- INCOMING
+
+
 port audioEventDone : (String -> msg) -> Sub msg
 
 
-port storeSettings : Encode.Value -> Cmd msg
+port windowResized : (Decode.Value -> msg) -> Sub msg
 
 
 
@@ -256,6 +285,8 @@ decodeFlags json =
                 '.'
                 Colors.lightMode
                 False
+                1200
+                1000
 
 
 init : Decode.Value -> ( Model, Cmd msg )
@@ -278,6 +309,8 @@ init flags =
             , workingTime = decodedFlags.workingTime
             , separator = decodedFlags.separator
             }
+      , windowWidth = decodedFlags.windowWidth
+      , windowHeight = decodedFlags.windowHeight
       }
     , Cmd.none
     )
@@ -486,6 +519,14 @@ update msg model =
             , storeSettings (settingsEncoder newModel)
             )
 
+        WindowResize newSizes ->
+            ( { model
+                | windowHeight = newSizes.height
+                , windowWidth = newSizes.width
+              }
+            , Cmd.none
+            )
+
 
 type alias Document msg =
     { title : String
@@ -544,19 +585,19 @@ formatNumber separator max x =
 
 
 viewTimer : Model -> Element Msg
-viewTimer { state, timer } =
+viewTimer { state, timer, windowHeight } =
     let
-        element =
-            case state of
-                Working ->
-                    SimpleTimer.toSvg 800 timer
-                        |> Elm.html
-                        |> Elm.el [ centerX, centerY ]
-
-                _ ->
-                    Elm.none
+        height =
+            round (0.7 * windowHeight)
     in
-    element
+    case state of
+        Working ->
+            SimpleTimer.toSvg height timer
+                |> Elm.html
+                |> Elm.el [ centerX, centerY ]
+
+        _ ->
+            Elm.none
 
 
 viewValue : Colors.ColorScheme -> Value String -> ( String, Elm.Attr decorative msg, Elm.Attr decorative msg )
@@ -814,6 +855,9 @@ mainView model =
                         Invalid _ ->
                             "Fehler (21)"
 
+        fontSize =
+            round (0.2 * model.windowHeight)
+
         additionalAttributes =
             case model.state of
                 Working ->
@@ -839,18 +883,15 @@ mainView model =
     in
     Elm.layout
         [ Background.color (Elm.fromRgb255 model.currentColorScheme.background)
-
-        --, explain Debug.todo
         ]
         (column
             [ height fill
             , width fill
             , centerX
             , centerY
-
-            --, explain Debug.todo
             ]
-            [ Wiggle.setUp "wiggle-cogwheel" [ 33, -33 ]
+            [ -- css for the wiggle animation
+              Wiggle.setUp "wiggle-cogwheel" [ 33, -33 ]
                 |> Elm.html
             , row
                 [ width fill
@@ -862,7 +903,7 @@ mainView model =
                     (List.append
                         [ centerX
                         , centerY
-                        , Font.size 200
+                        , Font.size fontSize
                         , Elm.padding 80
                         , Font.family
                             [ Font.typeface "Martian Mono"
@@ -888,6 +929,20 @@ mainView model =
 -- SUBSCRIPTIONS
 
 
+handleWindowResize : Decode.Value -> Msg
+handleWindowResize value =
+    let
+        newSizes =
+            Decode.decodeValue windowSizeDecoder value
+    in
+    case newSizes of
+        Ok sizes ->
+            WindowResize sizes
+
+        Err _ ->
+            DoNothing
+
+
 subscriptions : Model -> Sub Msg
 subscriptions { state } =
     let
@@ -902,6 +957,7 @@ subscriptions { state } =
     Sub.batch
         [ timerTick
         , audioEventDone AudioEventDone
+        , windowResized handleWindowResize
         ]
 
 
