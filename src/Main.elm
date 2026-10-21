@@ -12,6 +12,7 @@ import Element.Font as Font
 import Element.Input as Input
 import Element.Region as Region
 import Html exposing (Html)
+import Html.Attributes
 import Icons
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline as Decode
@@ -90,6 +91,7 @@ type alias Model =
     , settings : Settings
     , windowWidth : Float
     , windowHeight : Float
+    , isFullscreen : Bool
     }
 
 
@@ -108,6 +110,9 @@ type Msg
     | SetColorScheme Colors.ColorScheme
     | SetSeparator Char
     | WindowResize WindowSizes
+    | ToggleFullscreen
+    | EnterFullscreen
+    | ExitFullscreen
 
 
 
@@ -226,6 +231,9 @@ port triggerAudioEvent : String -> Cmd msg
 port storeSettings : Encode.Value -> Cmd msg
 
 
+port toggleFullscreen : Int -> Cmd msg
+
+
 
 -- INCOMING
 
@@ -234,6 +242,9 @@ port audioEventDone : (String -> msg) -> Sub msg
 
 
 port windowResized : (Decode.Value -> msg) -> Sub msg
+
+
+port fullscreenChange : (String -> msg) -> Sub msg
 
 
 
@@ -311,6 +322,7 @@ init flags =
             }
       , windowWidth = decodedFlags.windowWidth
       , windowHeight = decodedFlags.windowHeight
+      , isFullscreen = False
       }
     , Cmd.none
     )
@@ -526,6 +538,15 @@ update msg model =
               }
             , Cmd.none
             )
+
+        ToggleFullscreen ->
+            ( model, toggleFullscreen 67 )
+
+        EnterFullscreen ->
+            ( { model | isFullscreen = True }, Cmd.none )
+
+        ExitFullscreen ->
+            ( { model | isFullscreen = False }, Cmd.none )
 
 
 type alias Document msg =
@@ -799,14 +820,17 @@ viewSettingsIcon model width =
     in
     el
         [ Elm.alignRight
-        , Elm.paddingXY 20 20
         , Elm.pointer
         , Events.onMouseEnter (MouseOverSettingsIcon True)
         , Events.onMouseLeave (MouseOverSettingsIcon False)
         , Events.onClick ToggleSettings
         ]
         (el
-            [ wiggle, centerX, centerY ]
+            [ wiggle
+            , centerX
+            , centerY
+            , Elm.htmlAttribute (Html.Attributes.title "Einstellungen!")
+            ]
             (Elm.html
                 (Icons.render
                     Icons.Settings
@@ -822,12 +846,14 @@ viewGoIcon : Model -> Float -> Element Msg
 viewGoIcon model width =
     el
         [ Elm.alignRight
-        , Elm.paddingXY 20 20
         , Elm.pointer
         , Events.onClick StartRolling
         ]
         (el
-            [ centerX, centerY ]
+            [ centerX
+            , centerY
+            , Elm.htmlAttribute (Html.Attributes.title "Go!")
+            ]
             (Elm.html
                 (Icons.render
                     Icons.Go
@@ -835,6 +861,41 @@ viewGoIcon model width =
                     model.currentColorScheme.fontBackground
                     width
                 )
+            )
+        )
+
+
+viewFullscreenIcon : Model -> Float -> Element Msg
+viewFullscreenIcon model width =
+    let
+        icon =
+            if model.isFullscreen then
+                Icons.ExitFullscreen
+
+            else
+                Icons.EnterFullscreen
+
+        titleText =
+            if model.isFullscreen then
+                "Vollbild verlassen"
+
+            else
+                "Vollbild"
+    in
+    el
+        [ Elm.alignRight
+        , Elm.pointer
+        , Events.onClick ToggleFullscreen
+        , Elm.centerX
+        , Elm.centerY
+        , Elm.htmlAttribute (Html.Attributes.title titleText)
+        ]
+        (Elm.html
+            (Icons.render
+                icon
+                model.currentColorScheme.font
+                model.currentColorScheme.fontBackground
+                width
             )
         )
 
@@ -917,9 +978,12 @@ mainView model =
             , row
                 [ width fill
                 , height (fillPortion 3)
+                , Elm.padding 20
+                , Elm.spacing 15
                 ]
-                [ viewGoIcon model 50
-                , viewSettingsIcon model 50
+                [ viewGoIcon model 35
+                , viewSettingsIcon model 35
+                , viewFullscreenIcon model 35
                 ]
             ]
         )
@@ -927,6 +991,16 @@ mainView model =
 
 
 -- SUBSCRIPTIONS
+
+
+handleFullscreenChange : String -> Msg
+handleFullscreenChange value =
+    case value of
+        "enter" ->
+            EnterFullscreen
+
+        _ ->
+            ExitFullscreen
 
 
 handleWindowResize : Decode.Value -> Msg
@@ -958,6 +1032,7 @@ subscriptions { state } =
         [ timerTick
         , audioEventDone AudioEventDone
         , windowResized handleWindowResize
+        , fullscreenChange handleFullscreenChange
         ]
 
 

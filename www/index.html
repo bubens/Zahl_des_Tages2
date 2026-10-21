@@ -12,147 +12,165 @@
 	<meta name="revisit-after" content="180 days">
 	<meta name="author" content="Henning P. Beyer <bubens@unpunk.de>">
 	<meta name="viewport" content="width=320, initial-scale=1, user-scaleable=0">
- 
+
 	<link rel="preconnect" href="https://fonts.googleapis.com">
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Martian+Mono:wght@100..800&display=swap" rel="stylesheet">
+	<link
+		href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Martian+Mono:wght@100..800&display=swap"
+		rel="stylesheet">
 	<script src="app.js"></script>
 </head>
 
 <body>
-<div id="app_goes_here">Loading...</div>
-    
-<script>
-const createSample = async function (file) {
-    const audioBuffer = await fetch(file)
-        .then(response => response.arrayBuffer())
-        .then(arrayBuffer => (new window.AudioContext).decodeAudioData(arrayBuffer))
-        .catch(error => { console.error(error); throw error; });
-    
+	<div id="app_goes_here">Loading...</div>
 
-    const trigger = (unmuted, callback) => {
-        if (!audioBuffer || !unmuted) {
-            return false;
-        }
-        const context = new window.AudioContext;
-        const source = context.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(context.destination);
-        source.start(0);
-        if (callback !== undefined) {
-            setTimeout(callback, audioBuffer.duration * 1000 );
-        }
-        return true;
-    };
-
-    return { trigger, audioBuffer };
-};
-
-const cloneObject = obj => 
-        (structuredClone) 
-            ? structuredClone(obj)
-            : JSON.parse(JSON.stringify(obj));
+	<script>
+		const createSample = async function (file) {
+			const audioBuffer = await fetch(file)
+				.then(response => response.arrayBuffer())
+				.then(arrayBuffer => (new window.AudioContext).decodeAudioData(arrayBuffer))
+				.catch(error => { console.error(error); throw error; });
 
 
-const loadStoredDataWithDefault = (storageKey, defaultModel) => {
-    let rawData = null;
+			const trigger = (unmuted, callback) => {
+				if (!audioBuffer || !unmuted) {
+					return false;
+				}
+				const context = new window.AudioContext;
+				const source = context.createBufferSource();
+				source.buffer = audioBuffer;
+				source.connect(context.destination);
+				source.start(0);
+				if (callback !== undefined) {
+					setTimeout(callback, audioBuffer.duration * 1000);
+				}
+				return true;
+			};
 
-    try {
-        rawData = localStorage.getItem(storageKey);
-    }
-    catch (e) {
-        console.warn("Failed to access local storage. Continue with default values.");
-        return cloneObject(defaultModel);
-    }
-    
-    if (rawData === null) return cloneObject(defaultModel);
+			return { trigger, audioBuffer };
+		};
 
-    try {
-        const parsed = JSON.parse(rawData);
-        return (typeof parsed === "object") 
-            && parsed !== null
-                ? parsed
-                : cloneObject(defaultModel);
-        
-    }
-    catch (e) {
-        console.error(`Failed to parse stored data for key "${storageKey}":`, e)
-        return cloneObject(defaultModel);
-    }
-    
-};
-
-const detectSystemColorScheme = () =>
-    window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "darkMode"
-        : "lightMode";
-
-const main = async () => {
-    
-    const storageKey = "$ZDT2-data";
-
-    const defaultValues = {
-        minimum : "0",
-        maximum : "9999",
-        workingTime : "180",
-        separator : ".",
-        currentColorScheme : detectSystemColorScheme(),
-        settingsOpen : false      
-        };
-
-    const click = await createSample("audio/click.mp3");
-    const timerDone = await createSample("audio/timer_done.mp3");
-    const rollingDone = await createSample("audio/done_rolling.mp3");
-
-    const data = loadStoredDataWithDefault(storageKey, defaultValues);
-    //debugger;
-
-    data.windowWidth = window.innerWidth;
-    data.windowHeight = window.innerHeight;
-
-    //debugger;
-    
-    const app = Elm.Main.init({
-	    node: document.querySelector("#app_goes_here"),
-        flags : data
-    });
+		const cloneObject = obj =>
+			(structuredClone)
+				? structuredClone(obj)
+				: JSON.parse(JSON.stringify(obj));
 
 
-    app.ports.triggerAudioEvent.subscribe(event => {
-         //debugger;
-        switch (event) {
-            case "click" : 
-                //debugger;
-                click.trigger(true);
-                break;
-            case "timerDone":
-                timerDone.trigger(true, () => {
-                    //debugger;
-                    app.ports.audioEventDone.send("timerDone");
-                });
-                break;
-            case "rollingDone" :
-                rollingDone.trigger(true);
-                break;
-            default: 
-                console.warn("Failed to play audioEvent (%s)", event);
-        }
-    });
+		const loadStoredDataWithDefault = (storageKey, defaultModel) => {
+			let rawData = null;
 
-    app.ports.storeSettings.subscribe(data => {
-        const strData = JSON.stringify(data);
-        localStorage.setItem(storageKey, strData);
-    });
+			try {
+				rawData = localStorage.getItem(storageKey);
+			}
+			catch (e) {
+				console.warn("Failed to access local storage. Continue with default values.");
+				return cloneObject(defaultModel);
+			}
 
-    window.addEventListener("resize", () => {
-        const sizes = {width : window.innerWidth, height : window.innerHeight};
-        app.ports.windowResized.send(sizes);
-    });
+			if (rawData === null) return cloneObject(defaultModel);
 
-};
+			try {
+				const parsed = JSON.parse(rawData);
+				return (typeof parsed === "object")
+					&& parsed !== null
+					? parsed
+					: cloneObject(defaultModel);
 
-main();
-</script>
+			}
+			catch (e) {
+				console.error(`Failed to parse stored data for key "${storageKey}":`, e)
+				return cloneObject(defaultModel);
+			}
+
+		};
+
+		const detectSystemColorScheme = () =>
+			window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+				? "darkMode"
+				: "lightMode";
+
+		const main = async () => {
+
+			const storageKey = "$ZDT2-data";
+
+			const defaultValues = {
+				minimum: "0",
+				maximum: "9999",
+				workingTime: "180",
+				separator: ".",
+				currentColorScheme: detectSystemColorScheme(),
+				settingsOpen: false
+			};
+
+			const click = await createSample("audio/click.mp3");
+			const timerDone = await createSample("audio/timer_done.mp3");
+			const rollingDone = await createSample("audio/done_rolling.mp3");
+
+			const data = loadStoredDataWithDefault(storageKey, defaultValues);
+			//debugger;
+
+			data.windowWidth = window.innerWidth;
+			data.windowHeight = window.innerHeight;
+
+			//debugger;
+
+			const app = Elm.Main.init({
+				node: document.querySelector("#app_goes_here"),
+				flags: data
+			});
+
+
+			app.ports.triggerAudioEvent.subscribe(event => {
+				//debugger;
+				switch (event) {
+					case "click":
+						//debugger;
+						click.trigger(true);
+						break;
+					case "timerDone":
+						timerDone.trigger(true, () => {
+							//debugger;
+							app.ports.audioEventDone.send("timerDone");
+						});
+						break;
+					case "rollingDone":
+						rollingDone.trigger(true);
+						break;
+					default:
+						console.warn("Failed to play audioEvent (%s)", event);
+				}
+			});
+
+			app.ports.toggleFullscreen.subscribe(_ => {
+				const element = document.querySelector("body");
+				console.log("Toggeling fullscreen...");
+
+				if (document.fullscreenElement === element) {
+					document.exitFullscreen()
+						.then(() => app.ports.fullscreenChange.send("exit"))
+						.catch(err => console.error(err));
+				}
+				else {
+					element.requestFullscreen()
+						.then(() => app.ports.fullscreenChange.send("enter"))
+						.catch(err => console.error(err));
+				}
+			});
+
+			app.ports.storeSettings.subscribe(data => {
+				const strData = JSON.stringify(data);
+				localStorage.setItem(storageKey, strData);
+			});
+
+			window.addEventListener("resize", () => {
+				const sizes = { width: window.innerWidth, height: window.innerHeight };
+				app.ports.windowResized.send(sizes);
+			});
+
+		};
+
+		main();
+	</script>
 </body>
 
 </html>
