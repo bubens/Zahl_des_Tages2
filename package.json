@@ -17,10 +17,10 @@
   },
   "main": "www/index.html",
   "scripts": {
-    "make" : "sh make.sh"
+    "make": "sh make.sh"
   },
   "devDependencies": {
-    "elm": "^0.19.1-6",
+    "elm": "^0.19.3-0",
     "terser": "^5.46.0"
   }
 }
