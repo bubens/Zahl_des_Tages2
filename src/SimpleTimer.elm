@@ -2,7 +2,7 @@ module SimpleTimer exposing (SimpleTimer, State(..), TimerConfiguration, changeC
 
 import Colors
 import Html exposing (Html)
-import Svg exposing (Svg)
+import Svg
 import Svg.Attributes as Attr
 import Svg.PathD as Path exposing (Segment(..))
 import Time exposing (Posix)

@@ -19,12 +19,43 @@
 		href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&family=Martian+Mono:wght@100..800&display=swap"
 		rel="stylesheet">
 	<script src="app.js"></script>
+	<style>
+		body {
+			background: rgba(2, 30, 32, 1);
+			color: rgba(220, 226, 228, 1);
+		}
+
+		div#temp {
+			font-family: 'IMB Plex Sans', 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+			position: absolute;
+			font-size: 120pt;
+			top: 33%;
+			width: 100%;
+			text-align: center;
+		}
+	</style>
 </head>
 
 <body>
-	<div id="app_goes_here">Loading...</div>
+	<div id="app_goes_here">
+		<div id="temp">Loading</div>
+	</div>
 
 	<script>
+		const loading = (n) => {
+			const elem = document.getElementById("temp");
+
+			if (elem !== null) {
+				const str = Array(n % 5).join(".")
+				elem.innerHtml = "Loading" + str;
+				setTimeout(() => loading(n + 1), 20);
+			}
+			else {
+				console.log("Real app running...");
+			}
+		};
+		loading(1);
+
 		const createSample = async function (file) {
 			const audioBuffer = await fetch(file)
 				.then(response => response.arrayBuffer())
@@ -107,12 +138,9 @@
 			const rollingDone = await createSample("audio/done_rolling.mp3");
 
 			const data = loadStoredDataWithDefault(storageKey, defaultValues);
-			//debugger;
 
 			data.windowWidth = window.innerWidth;
 			data.windowHeight = window.innerHeight;
-
-			//debugger;
 
 			const app = Elm.Main.init({
 				node: document.querySelector("#app_goes_here"),
@@ -121,15 +149,12 @@
 
 
 			app.ports.triggerAudioEvent.subscribe(event => {
-				//debugger;
 				switch (event) {
 					case "click":
-						//debugger;
 						click.trigger(true);
 						break;
 					case "timerDone":
 						timerDone.trigger(true, () => {
-							//debugger;
 							app.ports.audioEventDone.send("timerDone");
 						});
 						break;
@@ -143,7 +168,6 @@
 
 			app.ports.toggleFullscreen.subscribe(_ => {
 				const element = document.querySelector("body");
-				console.log("Toggeling fullscreen...");
 
 				if (document.fullscreenElement === element) {
 					document.exitFullscreen()
@@ -166,7 +190,6 @@
 				const sizes = { width: window.innerWidth, height: window.innerHeight };
 				app.ports.windowResized.send(sizes);
 			});
-
 		};
 
 		main();
