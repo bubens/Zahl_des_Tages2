@@ -177,9 +177,9 @@ getColorScheme name =
 flagsDecoder : Decoder Flags
 flagsDecoder =
     Decode.succeed Flags
-        |> Decode.required "minimum" (Decode.map checkInput Decode.string)
-        |> Decode.required "maximum" (Decode.map checkInput Decode.string)
-        |> Decode.required "workingTime" (Decode.map checkInput Decode.string)
+        |> Decode.required "minimum" (Decode.map checkRange Decode.string)
+        |> Decode.required "maximum" (Decode.map checkRange Decode.string)
+        |> Decode.required "workingTime" (Decode.map checkWorkingTime Decode.string)
         |> Decode.required "separator" (Decode.map (charifyWithDefault '.') Decode.string)
         |> Decode.required "currentColorScheme" (Decode.map getColorScheme Decode.string)
         |> Decode.required "settingsOpen" Decode.bool
@@ -332,10 +332,24 @@ init flags =
 -- UPDATE
 
 
-checkInput : String -> Value String
-checkInput input =
+checkRange : String -> Value String
+checkRange input =
     String.toInt input
         |> Maybe.map (\_ -> Valid input)
+        |> Maybe.withDefault (Invalid input)
+
+
+checkWorkingTime : String -> Value String
+checkWorkingTime input =
+    String.toInt input
+        |> Maybe.map
+            (\x ->
+                if x >= 0 then
+                    Valid input
+
+                else
+                    Invalid input
+            )
         |> Maybe.withDefault (Invalid input)
 
 
@@ -481,13 +495,13 @@ update msg model =
                 newSettings =
                     case value of
                         Maximum str ->
-                            { settings | maximum = checkInput str }
+                            { settings | maximum = checkRange str }
 
                         Minimum str ->
-                            { settings | minimum = checkInput str }
+                            { settings | minimum = checkRange str }
 
                         WorkingTime str ->
-                            { settings | workingTime = checkInput str }
+                            { settings | workingTime = checkWorkingTime str }
 
                 newModel =
                     { model | settings = newSettings }
